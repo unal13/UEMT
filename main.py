@@ -3,8 +3,12 @@ from tkinter import messagebox
 from PIL import Image, ImageTk
 import cx_Oracle
 
+conStr = 'system/P@localhost:1521/xepdb1'
+
 BG_IMAGE_PATH = "C:\\Users\\emrei\\PycharmProjects\\1.Projekt\\Login.png"
 INTERFACE_BG_IMAGE_PATH = "C:\\Users\\emrei\\PycharmProjects\\1.Projekt\\Interface.png"
+REGISTER_BG_IMAGE_PATH = "C:\\Users\\emrei\\PycharmProjects\\1.Projekt\\Register.png"
+
 
 class BaseWindow:
     def __init__(self, app, width, height):
@@ -61,12 +65,16 @@ class LoginWindow(BaseWindow):
         self.login_button = tk.Button(self.root, text="Login", command=self.login, bg='orange', fg='white', font=('Arial', 12, 'bold'))
         self.login_button.place(relx=0.5, rely=0.75, anchor=tk.CENTER)
         self.register_button = tk.Button(self.root, text="Register", command=self.register, bg='orange', fg='white', font=('Arial', 12, 'bold'))
-        self.register_button.place(relx=0.5, rely=0.8, anchor=tk.CENTER)
+        self.register_button.place(relx=0.5, rely=0.9, anchor=tk.CENTER)
         self.root.config(menu=None)
+
+    def register(self):
+        self.app.create_register_window()
 
     def clear_username(self, event):
         if self.username_entry.get() == "Username":
             self.username_entry.delete(0, tk.END)
+
 
     def fill_username(self, event):
         if self.username_entry.get() == "":
@@ -88,9 +96,6 @@ class LoginWindow(BaseWindow):
             self.root.destroy()
             self.app.create_interface_window()
 
-    def register(self):
-        self.root.destroy()
-        self.app.create_register_window()
 
 class InterfaceWindow(BaseWindow):
     def __init__(self, app):
@@ -155,53 +160,62 @@ class SonderfunktionenWindow(BaseWindow):
         self.root.config(menu=self.function_menu)
         tk.Button(self.root, text="Zurück", command=self.go_back, bg='orange', fg='white', font=('Arial', 12, 'bold')).pack()
 
-class RegisterWindow(BaseWindow):
-    def __init__(self, app):
-        bg_image = Image.open(BG_IMAGE_PATH)
-        super().__init__(app, bg_image.width, bg_image.height)
-        bg_image = bg_image.resize((bg_image.width, bg_image.height), Image.LANCZOS)
-        self.bg_photo = ImageTk.PhotoImage(bg_image)
-        self.bg_label = tk.Label(self.root, image=self.bg_photo)
-        self.bg_label.place(x=0, y=0, relwidth=1, relheight=1)
-        self.username_entry = tk.Entry(self.root, width=30, font=('Arial', 12))
-        self.username_entry.place(relx=0.5, rely=0.4, anchor=tk.CENTER)
-        self.password_entry = tk.Entry(self.root, show="*", width=30, font=('Arial', 12))
-        self.password_entry.place(relx=0.5, rely=0.5, anchor=tk.CENTER)
-        self.confirm_password_entry = tk.Entry(self.root, show="*", width=30, font=('Arial', 12))
-        self.confirm_password_entry.place(relx=0.5, rely=0.6, anchor=tk.CENTER)
-        self.full_name_entry = tk.Entry(self.root, width=30, font=('Arial', 12))
-        self.full_name_entry.place(relx=0.5, rely=0.7, anchor=tk.CENTER)
-        self.register_button = tk.Button(self.root, text="Register", command=self.register_user, bg='orange', fg='white', font=('Arial', 12, 'bold'))
-        self.register_button.place(relx=0.5, rely=0.8, anchor=tk.CENTER)
-        self.back_button = tk.Button(self.root, text="Back", command=self.go_back, bg='orange', fg='white', font=('Arial', 12, 'bold'))
-        self.back_button.place(relx=0.5, rely=0.9, anchor=tk.CENTER)
+    class RegisterWindow:
+        def __init__(self, app, parent):
+            self.app = app
+            self.root = tk.Toplevel(parent)
+            self.root.title("Register")
 
-    def register_user(self):
-        username = self.username_entry.get()
-        password = self.password_entry.get()
-        confirm_password = self.confirm_password_entry.get()
-        full_name = self.full_name_entry.get()
+            # Load the background image
+            bg_image = Image.open(REGISTER_BG_IMAGE_PATH)
 
-        if password != confirm_password:
-            messagebox.showerror("Error", "Passwords do not match")
-            return
+            # Set a fixed size for the image
+            bg_image = bg_image.resize((800, 600), Image.LANCZOS)
+            self.bg_photo = ImageTk.PhotoImage(bg_image)
+            self.bg_label = tk.Label(self.root, image=self.bg_photo)
+            self.bg_label.place(x=0, y=0, relwidth=1, relheight=1)
 
-        conn = cx_Oracle.connect('system/P@localhost:1521/xepdb1')
-        cur = conn.cursor()
+            self.fullname_entry = self.create_entry("Vorname Nachname", 0)
+            self.username_entry = self.create_entry("NutzerID", 1)
+            self.password_entry = self.create_entry("Kennwort", 2, show="*")
+            self.confirm_password_entry = self.create_entry("Kennwort wiederholen", 3, show="*")
 
-        try:
-            cur.execute(
-                "INSERT INTO ÜMT.user_t (benutzer, userbez, dzins, Kennwort) VALUES (:username, :full_name, sysdate, :password)",
-                {"username": username, "full_name": full_name, "password": password}
-            )
-        except cx_Oracle.DatabaseError as error:
-            messagebox.showerror("Error", "Could not register user: " + str(error))
-        else:
-            conn.commit()
-            messagebox.showinfo("Success", "User registered successfully")
+            tk.Button(self.root, text="Register", command=self.register).grid(row=4, column=1)
+            tk.Button(self.root, text="Abbrechen", command=self.root.destroy).grid(row=5, column=1)
 
-        cur.close()
-        conn.close()
+        def create_entry(self, text, row, **kwargs):
+            entry = tk.Entry(self.root, **kwargs)
+            entry.insert(0, text)
+            entry.bind("<FocusIn>", lambda args: entry.delete(0, 'end') if entry.get() == text else None)
+            entry.bind("<FocusOut>", lambda args: entry.insert(0, text) if entry.get() == "" else None)
+            entry.grid(row=row, column=1)
+            return entry
+
+        def register(self):
+            username = self.username_entry.get()
+            password = self.password_entry.get()
+            confirm_password = self.confirm_password_entry.get()
+            full_name = self.fullname_entry.get()
+
+            if password != confirm_password:
+                messagebox.showerror("Error", "Passwords do not match")
+                return
+
+            conn = cx_Oracle.connect(conStr)
+            cur = conn.cursor()
+            try:
+                cur.execute(
+                    "INSERT INTO ÜMT.user_t (benutzer, userbez, dzins, kennwort) VALUES (:username, :full_name, SYSDATE, :password)",
+                    {"username": username, "full_name": full_name, "password": password}
+                )
+            except cx_Oracle.DatabaseError as error:
+                messagebox.showerror("Error", "Could not register user: " + str(error))
+            else:
+                conn.commit()
+                messagebox.showinfo("Success", "User registered successfully")
+            cur.close()
+            conn.close()
+
 
 class MyApp:
     def __init__(self):
@@ -209,11 +223,19 @@ class MyApp:
         self.root.withdraw()
         self.change_window(self.create_login_window)
 
+    def create_register_window(self):
+        return RegisterWindow(self, self.current_window.root)
+
+    def register(self):
+        self.create_register_window()
+
     def change_window(self, window_creator):
         self.current_window = window_creator()
 
     def create_login_window(self):
         return LoginWindow(self)
+
+
 
     def create_interface_window(self):
         return InterfaceWindow(self)
@@ -227,8 +249,9 @@ class MyApp:
     def create_sonderfunktionen_window(self):
         return SonderfunktionenWindow(self)
 
-    def create_register_window(self):
-        return RegisterWindow(self)
+
+
+
 
 if __name__ == "__main__":
     app = MyApp()
